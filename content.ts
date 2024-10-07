@@ -2,8 +2,11 @@ interface AutocompleteOverlay extends HTMLDivElement {
 	input: HTMLInputElement;
 	modelSelect: HTMLSelectElement;
 	submitButton: HTMLButtonElement;
+	settingsLink: HTMLAnchorElement;
 	originalInput: HTMLInputElement | HTMLTextAreaElement;
 }
+
+let currentOverlay: AutocompleteOverlay | null = null;
 
 function createAutocompleteOverlay(
 	input: HTMLInputElement | HTMLTextAreaElement,
@@ -17,12 +20,13 @@ function createAutocompleteOverlay(
 		padding: 10px;
 		box-shadow: 0 2px 5px rgba(0,0,0,0.2);
 		display: none;
+		border-radius: 4px;
 	`;
 
 	const autocompleteInput = document.createElement("input");
 	autocompleteInput.type = "text";
 	autocompleteInput.placeholder = "Enter prompt for autocomplete...";
-	autocompleteInput.style.width = "calc(100% - 180px)";
+	autocompleteInput.style.width = "200px";
 	autocompleteInput.style.marginRight = "5px";
 	autocompleteInput.style.padding = "5px";
 
@@ -30,23 +34,34 @@ function createAutocompleteOverlay(
 	modelSelect.innerHTML = `
 		<option value="gpt-3.5-turbo">GPT-3.5</option>
 		<option value="gpt-4">GPT-4</option>
-		<option value="claude-2">Claude 2</option>
+		<option value="calude-3.5">Claude 3.5</option>
 	`;
-	modelSelect.style.width = "100px";
-	modelSelect.style.marginRight = "5px";
 	modelSelect.style.padding = "5px";
 
 	const submitButton = document.createElement("button");
 	submitButton.textContent = "Submit";
-	submitButton.style.width = "70px";
 	submitButton.style.padding = "5px";
+
+	const settingsLink = document.createElement("a");
+	settingsLink.textContent = "Settings";
+	settingsLink.href = chrome.runtime.getURL("options.html");
+	settingsLink.id = "go-to-options";
+	settingsLink.style.cssText = `
+		display: block;
+		margin-top: 5px;
+		font-size: 12px;
+		color: #0066cc;
+		text-decoration: none;
+	`;
 
 	overlay.appendChild(autocompleteInput);
 	overlay.appendChild(modelSelect);
 	overlay.appendChild(submitButton);
+	overlay.appendChild(settingsLink);
 	overlay.input = autocompleteInput;
 	overlay.modelSelect = modelSelect;
 	overlay.submitButton = submitButton;
+	overlay.settingsLink = settingsLink;
 	overlay.originalInput = input;
 
 	return overlay;
@@ -55,46 +70,39 @@ function createAutocompleteOverlay(
 function positionOverlay(overlay: AutocompleteOverlay): void {
 	const rect = overlay.originalInput.getBoundingClientRect();
 	overlay.style.left = `${rect.left + window.scrollX}px`;
-	overlay.style.top = `${rect.bottom + window.scrollY}px`;
-	overlay.style.width = `${rect.width}px`;
+	overlay.style.top = `${
+		rect.top + window.scrollY - overlay.offsetHeight - 5
+	}px`;
 }
 
-function setupAutocomplete(
-	input: HTMLInputElement | HTMLTextAreaElement,
-): void {
-	const overlay = createAutocompleteOverlay(input);
-	document.body.appendChild(overlay);
+function showOverlay(input: HTMLInputElement | HTMLTextAreaElement): void {
+	if (!currentOverlay) {
+		currentOverlay = createAutocompleteOverlay(input);
+		document.body.appendChild(currentOverlay);
+		setupOverlayListeners(currentOverlay);
+	} else {
+		currentOverlay.originalInput = input;
+	}
+	positionOverlay(currentOverlay);
+	currentOverlay.style.display = "block";
+	currentOverlay.input.focus();
+}
 
-	positionOverlay(overlay);
-	window.addEventListener("resize", () => positionOverlay(overlay));
-	window.addEventListener("scroll", () => positionOverlay(overlay));
+function hideOverlay(): void {
+	if (currentOverlay) {
+		currentOverlay.style.display = "none";
+		currentOverlay.originalInput.focus();
+	}
+}
 
-	input.addEventListener("keydown", (e: Event) => {
-		const keyboardEvent = e as KeyboardEvent;
-		if (
-			keyboardEvent.key === "k" &&
-			(keyboardEvent.metaKey || keyboardEvent.ctrlKey)
-		) {
-			e.preventDefault();
-			overlay.style.display = "block";
-			overlay.input.focus();
-		}
-	});
-
-	overlay.input.addEventListener("keydown", (e: KeyboardEvent) => {
-		if (e.key === "Escape") {
-			overlay.style.display = "none";
-			input.focus();
-		}
-	});
-
+function setupOverlayListeners(overlay: AutocompleteOverlay): void {
 	async function handleSubmit() {
 		const prompt = overlay.input.value;
 		const model = overlay.modelSelect.value;
+		console.log("I have been clicked");
 		const completion = await requestCompletion(prompt, model);
-		input.value = completion;
-		overlay.style.display = "none";
-		input.focus();
+		overlay.originalInput.value = completion;
+		hideOverlay();
 	}
 
 	overlay.submitButton.addEventListener("click", handleSubmit);
@@ -102,7 +110,15 @@ function setupAutocomplete(
 		if (e.key === "Enter") {
 			e.preventDefault();
 			handleSubmit();
+		} else if (e.key === "Escape") {
+			e.preventDefault();
+			hideOverlay();
 		}
+	});
+
+	overlay.settingsLink.addEventListener("click", (e) => {
+		e.preventDefault();
+		chrome.runtime.sendMessage({ action: "openSettingsPage" });
 	});
 }
 
@@ -114,39 +130,52 @@ async function requestCompletion(
 		chrome.runtime.sendMessage(
 			{ action: "getCompletion", prompt, model },
 			(response) => {
+				console.log("REspoinse is", response);
 				resolve(response.completion);
 			},
 		);
 	});
 }
 
-function addAutocompleteToInputs() {
-	const inputs = document.querySelectorAll<
-		HTMLInputElement | HTMLTextAreaElement
-	>('input[type="text"], textarea');
-	inputs.forEach(setupAutocomplete);
-}
-
-// Initial setup
-addAutocompleteToInputs();
-
-// Setup for dynamically added inputs
-const observer = new MutationObserver((mutations) => {
-	mutations.forEach((mutation) => {
-		if (mutation.type === "childList") {
-			mutation.addedNodes.forEach((node) => {
-				if (node instanceof HTMLElement) {
-					const inputs = node.querySelectorAll<
-						HTMLInputElement | HTMLTextAreaElement
-					>('input[type="text"], textarea');
-					inputs.forEach(setupAutocomplete);
-				}
-			});
-		}
-	});
+// Event delegation for handling input focus and keydown events
+document.addEventListener("focusin", (e: FocusEvent) => {
+	const target = e.target as HTMLElement;
+	if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
+		target.addEventListener("keydown", handleInputKeydown);
+	}
 });
 
-observer.observe(document.body, { childList: true, subtree: true });
+document.addEventListener("focusout", (e: FocusEvent) => {
+	const target = e.target as HTMLElement;
+	if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
+		target.removeEventListener("keydown", handleInputKeydown);
+	}
+});
+
+function handleInputKeydown(e: KeyboardEvent): void {
+	if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+		e.preventDefault();
+		showOverlay(e.target as HTMLInputElement | HTMLTextAreaElement);
+	}
+}
+
+// Global event listeners
+document.addEventListener("keydown", (e: KeyboardEvent) => {
+	if (e.key === "Escape" && currentOverlay) {
+		e.preventDefault();
+		hideOverlay();
+	}
+});
+
+document.addEventListener("click", (e: MouseEvent) => {
+	if (
+		currentOverlay &&
+		!currentOverlay.contains(e.target as Node) &&
+		e.target !== currentOverlay.originalInput
+	) {
+		hideOverlay();
+	}
+});
 
 // Listen for the keyboard shortcut
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -156,12 +185,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 			activeElement instanceof HTMLInputElement ||
 			activeElement instanceof HTMLTextAreaElement
 		) {
-			const event = new KeyboardEvent("keydown", {
-				key: "k",
-				metaKey: true,
-				bubbles: true,
-			});
-			activeElement.dispatchEvent(event);
+			showOverlay(activeElement);
 		}
 	}
 });

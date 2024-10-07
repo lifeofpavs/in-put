@@ -1,14 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
 let anthropic;
 function initializeClients(settings) {
-    // if (settings.openaiKey) {
-    // 	openai = new OpenAI({
-    // 		apiKey: settings.openaiKey, // This is the default and can be omitted
-    // 	});
-    // }
     if (settings.anthropicKey) {
         anthropic = new Anthropic({
-            apiKey: settings.anthropicKey, // This is the default and can be omitted
+            apiKey: settings.anthropicKey,
         });
     }
 }
@@ -17,31 +12,29 @@ chrome.storage.sync.get(["settings"], (result) => {
     initializeClients(settings);
 });
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    console.log(request);
     if (request.action === "getCompletion") {
         getCompletion(request.prompt, request.model).then(sendResponse);
         return true; // Indicates that the response is asynchronous
+    }
+    if (request.action === "openSettingsPage") {
+        chrome.tabs.create({ url: chrome.runtime.getURL("settings.html") });
     }
 });
 async function getCompletion(prompt, model) {
     try {
         let completion;
-        // if (model.startsWith("gpt")) {
-        // 	const response = await openai.chat.completions.create({
-        // 		model: model,
-        // 		messages: [{ role: "user", content: prompt }],
-        // 		max_tokens: 50,
-        // 	});
-        // 	completion = response.choices[0].message?.content?.trim() || "";
-        // } else
-        if (model === "claude-2") {
+        console.log("Starting completion");
+        if (model === "claude-3.5") {
             const response = await anthropic.completions.create({
-                model: "claude-2",
+                model: "claude-3",
                 prompt: prompt,
                 max_tokens_to_sample: 50,
             });
             completion = response.completion.trim();
         }
         else {
+            console.log("unsupported");
             throw new Error("Unsupported model");
         }
         return { completion };
@@ -50,7 +43,7 @@ async function getCompletion(prompt, model) {
         console.error("Error getting completion:", error);
         return { completion: "Error: Unable to get completion" };
     }
-}c
+}
 chrome.commands.onCommand.addListener((command) => {
     if (command === "_execute_action") {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
