@@ -1,8 +1,12 @@
+import { OpenAI } from "openai";
 interface AutocompleteOverlay extends HTMLDivElement {
 	input: HTMLInputElement;
 	modelSelect: HTMLSelectElement;
 	submitButton: HTMLButtonElement;
 	settingsLink: HTMLAnchorElement;
+	spinner: HTMLDivElement;
+	warningMessage: HTMLDivElement;
+	errorMessage: HTMLDivElement;
 	originalInput: HTMLInputElement | HTMLTextAreaElement;
 }
 
@@ -11,22 +15,56 @@ let currentOverlay: AutocompleteOverlay | null = null;
 function createAutocompleteOverlay(
 	input: HTMLInputElement | HTMLTextAreaElement,
 ): AutocompleteOverlay {
-	// Add Tailwind CSS CDN
-	const tailwindScript = document.createElement("script");
-	tailwindScript.src = "https://cdn.tailwindcss.com";
-	document.head.appendChild(tailwindScript);
+	const styleElement = document.createElement("style");
+	styleElement.textContent = `
+		:root {
+			--background-color-light: #ffffff;
+			--text-color-light: #000000;
+			--background-color-dark: #121212;
+			--text-color-dark: #ffffff;
+      --border-color: #
+		}
 
+		#barvis-overlay {
+			background-color: var(--background-color-light);
+			color: var(--text-color-light);
+		}
+
+    @media (prefers-color-scheme: dark) {
+			#barvis-overlay {
+			background-color: var(--background-color-dark);
+			color: var(--text-color-dark);
+		}
+	}
+	`;
+
+	const isDarkMode = window.matchMedia?.(
+		"(prefers-color-scheme: dark)",
+	).matches;
+	const backgroundColor = isDarkMode
+		? "var(--background-color-dark)"
+		: "var(--background-color-light)";
+	const textColor = isDarkMode
+		? "var(--text-color-dark)"
+		: "var(--text-color-light)";
+
+	document.documentElement.style.setProperty(
+		"--current-background-color",
+		backgroundColor,
+	);
+	document.documentElement.style.setProperty("--current-text-color", textColor);
+	document.head.appendChild(styleElement);
 	const overlay = document.createElement("div") as AutocompleteOverlay;
+	overlay.id = "barvis-overlay";
+
 	overlay.style.cssText = `
 		position: absolute;
 		z-index: 9999;
-		background: white;
-		border: 1px solid #ccc;
-		padding: 10px;
+		padding: 20px;
 		box-shadow: 0 2px 5px rgba(0,0,0,0.2);
 		display: none;
-		border-radius: 4px;
-
+		border-radius: 8px;
+		width: 400px;
 	`;
 
 	overlay.setAttribute("data-current-input", input.value);
@@ -45,10 +83,13 @@ function createAutocompleteOverlay(
 	controlsDiv.className = "flex justify-end items-center mt-2";
 
 	const modelSelect = document.createElement("select");
+	modelSelect.style.cssText = `
+  		border-radius: 2px;`;
+
 	modelSelect.innerHTML = `
-		<option value="claude-3.5">Claude 3.5</option>
-		<option value="gpt-4">GPT-4</option>
-		<option value="gpt-3.5-turbo">GPT-3.5</option>
+    <option value="o1-mini-2024-09-12">o1 Mini (OpenAI)</option>
+    <option value="chatgpt-4o-latest">GPT-4o (OpenAI)</option>
+    <option value="claude-3-5-sonnet-20240620">Claude 3.5 (Anthropic)</option>
 	`;
 	modelSelect.style.padding = "5px";
 
@@ -67,8 +108,49 @@ function createAutocompleteOverlay(
 		hover:bg-gray-200 dark:hover:bg-gray-600
 	`;
 
+	const spinner = document.createElement("div");
+	spinner.className = "spinner";
+	spinner.style.cssText = `
+		display: none;
+		width: 20px;
+		height: 20px;
+		border: 2px solid #f3f3f3;
+		border-top: 2px solid #3498db;
+		border-radius: 50%;
+		animation: spin 1s linear infinite;
+		margin-left: 10px;
+	`;
+
+	const warningMessage = document.createElement("div");
+	warningMessage.style.cssText = `
+		color: #A30000;
+		font-size: 12px;
+		margin-top: 5px;
+		display: none;
+	`;
+	warningMessage.textContent =
+		"No API key available. Please set up your API key in the settings.";
+
+	const errorMessage = document.createElement("div");
+	errorMessage.style.cssText = `
+		color: red;
+		font-size: 12px;
+		margin-top: 5px;
+		display: none;
+	`;
+
+	const style = document.createElement("style");
+	style.textContent = `
+		@keyframes spin {
+			0% { transform: rotate(0deg); }
+			100% { transform: rotate(360deg); }
+		}
+	`;
+	document.head.appendChild(style);
+
 	controlsDiv.appendChild(modelSelect);
 	controlsDiv.appendChild(submitButton);
+	controlsDiv.appendChild(spinner);
 
 	const settingsLink = document.createElement("a");
 	settingsLink.textContent = "Open Settings ↗ ";
@@ -87,22 +169,24 @@ function createAutocompleteOverlay(
 
 	overlay.appendChild(autocompleteInput);
 	overlay.appendChild(controlsDiv);
+	overlay.appendChild(warningMessage);
+	overlay.appendChild(errorMessage);
 	overlay.appendChild(settingsLink);
 	overlay.input = autocompleteInput;
 	overlay.modelSelect = modelSelect;
 	overlay.submitButton = submitButton;
 	overlay.settingsLink = settingsLink;
+	overlay.spinner = spinner;
+	overlay.warningMessage = warningMessage;
+	overlay.errorMessage = errorMessage;
 	overlay.originalInput = input;
 	return overlay;
 }
 
 function positionOverlay(overlay: AutocompleteOverlay): void {
 	const rect = overlay.originalInput.getBoundingClientRect();
-
 	overlay.style.left = `${rect.left + window.scrollX}px`;
-	overlay.style.top = `${
-		rect.bottom + window.scrollY + 5 - overlay.offsetHeight
-	}px`;
+	overlay.style.top = `${rect.bottom + window.scrollY + 5}px`;
 }
 
 function showOverlay(input: HTMLInputElement | HTMLTextAreaElement): void {
@@ -115,6 +199,7 @@ function showOverlay(input: HTMLInputElement | HTMLTextAreaElement): void {
 	}
 	positionOverlay(currentOverlay);
 	currentOverlay.style.display = "block";
+	checkApiKeyAvailability(currentOverlay);
 	currentOverlay.input.focus();
 }
 
@@ -125,6 +210,17 @@ function hideOverlay(): void {
 	}
 }
 
+function checkApiKeyAvailability(overlay: AutocompleteOverlay): void {
+	chrome.storage.local.get(["settings"], (result) => {
+		const settings = result.settings || {};
+		const hasApiKey = settings.openaiKey || settings.anthropicKey;
+
+		overlay.input.disabled = !hasApiKey;
+		overlay.submitButton.disabled = !hasApiKey;
+		overlay.warningMessage.style.display = hasApiKey ? "none" : "block";
+	});
+}
+
 function setupOverlayListeners(overlay: AutocompleteOverlay): void {
 	async function handleSubmit() {
 		const prompt = `${
@@ -132,9 +228,29 @@ function setupOverlayListeners(overlay: AutocompleteOverlay): void {
 		}. CURRENT_INPUT_VALUE: ${overlay.getAttribute("data-current-input")}`;
 		const model = overlay.modelSelect.value;
 
-		const completion = await requestCompletion(prompt, model);
-		overlay.originalInput.value = completion;
-		hideOverlay();
+		// Show spinner and disable submit button
+		overlay.spinner.style.display = "inline-block";
+		overlay.submitButton.disabled = true;
+		overlay.submitButton.style.opacity = "0.5";
+		overlay.errorMessage.style.display = "none";
+
+		try {
+			const completion = await requestCompletion(prompt, model);
+			if (completion === "Error: Unable to get completion") {
+				throw new Error("Unable to get completion");
+			}
+			overlay.originalInput.value = completion;
+			hideOverlay();
+		} catch (error) {
+			overlay.errorMessage.textContent =
+				"Failed to get completion. Please try again or change the model.";
+			overlay.errorMessage.style.display = "block";
+		} finally {
+			// Hide spinner and enable submit button
+			overlay.spinner.style.display = "none";
+			overlay.submitButton.disabled = false;
+			overlay.submitButton.style.opacity = "1";
+		}
 	}
 
 	overlay.submitButton.addEventListener("click", handleSubmit);
@@ -152,6 +268,10 @@ function setupOverlayListeners(overlay: AutocompleteOverlay): void {
 		e.preventDefault();
 		chrome.runtime.sendMessage({ action: "openSettingsPage" });
 	});
+
+	overlay.modelSelect.addEventListener("change", () => {
+		overlay.errorMessage.style.display = "none";
+	});
 }
 
 async function requestCompletion(
@@ -162,7 +282,6 @@ async function requestCompletion(
 		chrome.runtime.sendMessage(
 			{ action: "getCompletion", prompt, model },
 			(response) => {
-				console.log("REspoinse is", response);
 				resolve(response.completion);
 			},
 		);

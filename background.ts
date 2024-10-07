@@ -1,5 +1,5 @@
-import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import type { TextBlock } from "@anthropic-ai/sdk/resources";
 
 interface Settings {
@@ -9,27 +9,42 @@ interface Settings {
 }
 
 let anthropic: Anthropic;
+let openai: OpenAI;
 
 function initializeClients(settings: Settings) {
-	console.log("Initializing clients with settings:", settings.anthropicKey);
+	if (settings.anthropicKey) {
+		anthropic = new Anthropic({
+			apiKey: settings.anthropicKey,
+			defaultHeaders: {
+				"anthropic-dangerous-direct-browser-access": "true",
+			},
+		});
+	}
 
-	anthropic = new Anthropic({
-		apiKey:
-			"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", //settings.anthropicKey,
-		defaultHeaders: {
-			"anthropic-dangerous-direct-browser-access": "true",
-		},
+	if (settings.openaiKey) {
+		openai = new OpenAI({ apiKey: settings.openaiKey });
+	}
+}
+
+function loadSettings() {
+	chrome.storage.local.get(["settings"], (result) => {
+		const settings: Settings = result.settings || {};
+		initializeClients(settings);
 	});
 }
 
-chrome.storage.sync.get(["settings"], (result) => {
-	console.log(result);
-	const settings: Settings = result.settings || {};
-	initializeClients(settings);
+// Initialize settings
+loadSettings();
+
+// Listen for settings changes
+chrome.storage.onChanged.addListener((changes, namespace) => {
+	if (namespace === "local" && changes.settings) {
+		const newSettings: Settings = changes.settings.newValue;
+		initializeClients(newSettings);
+	}
 });
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-	console.log(request);
 	if (request.action === "getCompletion") {
 		getCompletion(request.prompt, request.model).then(sendResponse);
 		return true; // Indicates that the response is asynchronous
@@ -46,18 +61,34 @@ async function getCompletion(
 	try {
 		let completion: string;
 
-		if (model === "claude-3.5") {
+		if (model === "claude-3-5-sonnet-20240620" && anthropic) {
 			const response = await anthropic.messages.create({
-				model: "claude-3-5-sonnet-20240620",
+				model,
 				messages: [{ role: "user", content: prompt }],
 				system:
-					"You are a helpful assistant which objective is to generate input data based on used prompt. The generated data would be used as the input of an input html text element and must be concise yet have meaning. If there is any current input value under CURRENT_INPUT_VALUE, use it for context of the prompt ",
-				max_tokens: 1024,
+					"You are a helpful assistant which objective is to generate input data based on used prompt. The generated data would be used as the input of an input html text element and must be concise yet have meaning. If there is any current input value under CURRENT_INPUT_VALUE, use it for context of the prompt. Do not text back any other information other than the new input value ",
+				max_tokens: 4096,
 			});
 
 			completion = (response.content[0] as TextBlock).text;
+		} else if (openai) {
+			const response = await openai.chat.completions.create({
+				model: model,
+				messages: [
+					{
+						role: "system",
+						content:
+							"You are a helpful assistant which objective is to generate input data based on used prompt. The generated data would be used as the input of an input html text element and must be concise yet have meaning. If there is any current input value under CURRENT_INPUT_VALUE, use it for context of the prompt. Do not text back any other information other than the new input value ",
+					},
+					{ role: "user", content: prompt },
+				],
+
+				max_tokens: 4096,
+			});
+
+			completion = response.choices[0].message.content || "";
 		} else {
-			throw new Error("Unsupported model");
+			throw new Error("Unsupported model or API key not set");
 		}
 
 		return { completion: completion, error: "", prompt };

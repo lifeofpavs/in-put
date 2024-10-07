@@ -1,10 +1,11 @@
 {
 	"name": "ai-autocomplete-extension",
-	"version": "1.0.0",
+	"version": "0.0.1",
 	"description": "Chrome extension for AI-powered autocomplete",
 	"scripts": {
 		"build": "webpack",
-		"watch": "webpack --watch"
+		"watch": "webpack --watch",
+		"release": "pnpm run build && pnpm exec webpack && zip -r barvis-ai-autocomplete-extension.zip dist manifest.json icons options.html -x '*.ts'"
 	},
 	"dependencies": {
 		"@anthropic-ai/sdk": "^0.28.0",
