@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Autocomplete Settings</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
+    label { display: block; margin-top: 10px; }
+    input, select { width: 100%; padding: 5px; margin-top: 5px; }
+    button { margin-top: 20px; padding: 10px; }
+  </style>
+</head>
+<body>
+  <h1>AI Autocomplete Settings</h1>
+  <form id="settingsForm">
+    <label for="openaiKey">OpenAI API Key:</label>
+    <input type="password" id="openaiKey" required>
+
+    <label for="anthropicKey">Anthropic API Key:</label>
+    <input type="password" id="anthropicKey" required>
+
+    <label for="defaultModel">Default Model:</label>
+    <select id="defaultModel">
+      <option value="gpt-3.5-turbo">GPT-3.5 Turbo (OpenAI)</option>
+      <option value="gpt-4">GPT-4 (OpenAI)</option>
+      <option value="claude-2">Claude 2 (Anthropic)</option>
+    </select>
+
+    <button type="submit">Save Settings</button>
+  </form>
+  <script src="options.js"></script>
+</body>
+</html>

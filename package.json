@@ -1,0 +1,16 @@
+{
+	"name": "ai-autocomplete-extension",
+	"version": "1.0.0",
+	"description": "Chrome extension for AI-powered autocomplete",
+	"scripts": {
+		"build": "tsc"
+	},
+	"dependencies": {
+		"@anthropic-ai/sdk": "^0.28.0",
+		"openai": "^4.67.1"
+	},
+	"devDependencies": {
+		"@types/chrome": "^0.0.237",
+		"typescript": "^5.3.3"
+	}
+}
