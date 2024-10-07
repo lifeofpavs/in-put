@@ -3,7 +3,7 @@
 	"name": "AI Autocomplete",
 	"version": "1.0",
 	"description": "Autocomplete input fields using AI models",
-	"permissions": ["activeTab", "scripting", "storage"],
+	"permissions": ["activeTab", "scripting", "storage", "nativeMessaging"],
 	"host_permissions": ["<all_urls>"],
 	"action": {
 		"default_popup": "popup.html"

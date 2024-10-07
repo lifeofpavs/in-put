@@ -34,7 +34,7 @@ function createAutocompleteOverlay(
 	modelSelect.innerHTML = `
 		<option value="gpt-3.5-turbo">GPT-3.5</option>
 		<option value="gpt-4">GPT-4</option>
-		<option value="calude-3.5">Claude 3.5</option>
+		<option value="claude-3.5">Claude 3.5</option>
 	`;
 	modelSelect.style.padding = "5px";
 
@@ -126,6 +126,7 @@ async function requestCompletion(
 	prompt: string,
 	model: string,
 ): Promise<string> {
+	console.log("Start completiong", prompt, model);
 	return new Promise((resolve) => {
 		chrome.runtime.sendMessage(
 			{ action: "getCompletion", prompt, model },

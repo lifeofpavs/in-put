@@ -36,10 +36,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 async function getCompletion(
 	prompt: string,
 	model: string,
-): Promise<{ completion: string }> {
+): Promise<{ completion: string; error: unknown; prompt: string }> {
 	try {
 		let completion: string;
-		console.log("Starting completion");
+
 		if (model === "claude-3.5") {
 			const response = await anthropic.completions.create({
 				model: "claude-3",
@@ -49,13 +49,18 @@ async function getCompletion(
 			completion = response.completion.trim();
 		} else {
 			console.log("unsupported");
+			return { completion: "", error: "unsupported", prompt };
 			throw new Error("Unsupported model");
 		}
 
-		return { completion };
+		return { completion: "kk", error: "", prompt };
 	} catch (error) {
-		console.error("Error getting completion:", error);
-		return { completion: "Error: Unable to get completion" };
+		console.error("Error getting completion:", error, prompt);
+		return {
+			completion: "Error: Unable to get completion",
+			error,
+			prompt,
+		};
 	}
 }
 
