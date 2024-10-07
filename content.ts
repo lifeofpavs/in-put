@@ -11,6 +11,11 @@ let currentOverlay: AutocompleteOverlay | null = null;
 function createAutocompleteOverlay(
 	input: HTMLInputElement | HTMLTextAreaElement,
 ): AutocompleteOverlay {
+	// Add Tailwind CSS CDN
+	const tailwindScript = document.createElement("script");
+	tailwindScript.src = "https://cdn.tailwindcss.com";
+	document.head.appendChild(tailwindScript);
+
 	const overlay = document.createElement("div") as AutocompleteOverlay;
 	overlay.style.cssText = `
 		position: absolute;
@@ -21,57 +26,82 @@ function createAutocompleteOverlay(
 		box-shadow: 0 2px 5px rgba(0,0,0,0.2);
 		display: none;
 		border-radius: 4px;
+
 	`;
+
+	overlay.setAttribute("data-current-input", input.value);
 
 	const autocompleteInput = document.createElement("input");
 	autocompleteInput.type = "text";
 	autocompleteInput.placeholder = "Enter prompt for autocomplete...";
-	autocompleteInput.style.width = "200px";
-	autocompleteInput.style.marginRight = "5px";
-	autocompleteInput.style.padding = "5px";
+	autocompleteInput.style.cssText = `
+		width: 100%;
+		padding: 5px;
+		margin-top: 5px;
+		box-sizing: border-box;
+	`;
+
+	const controlsDiv = document.createElement("div");
+	controlsDiv.className = "flex justify-end items-center mt-2";
 
 	const modelSelect = document.createElement("select");
 	modelSelect.innerHTML = `
-		<option value="gpt-3.5-turbo">GPT-3.5</option>
-		<option value="gpt-4">GPT-4</option>
 		<option value="claude-3.5">Claude 3.5</option>
+		<option value="gpt-4">GPT-4</option>
+		<option value="gpt-3.5-turbo">GPT-3.5</option>
 	`;
 	modelSelect.style.padding = "5px";
 
 	const submitButton = document.createElement("button");
 	submitButton.textContent = "Submit";
-	submitButton.style.padding = "5px";
+	submitButton.className = `
+		px-3 py-2
+		bg-gray-100 dark:bg-gray-700
+		border border-gray-300 dark:border-gray-600
+		rounded
+		text-gray-800 dark:text-gray-200
+		text-sm
+		cursor-pointer
+		ml-2
+		transition-colors duration-200 ease-in-out
+		hover:bg-gray-200 dark:hover:bg-gray-600
+	`;
+
+	controlsDiv.appendChild(modelSelect);
+	controlsDiv.appendChild(submitButton);
 
 	const settingsLink = document.createElement("a");
-	settingsLink.textContent = "Settings";
+	settingsLink.textContent = "Open Settings ↗ ";
 	settingsLink.href = chrome.runtime.getURL("options.html");
 	settingsLink.id = "go-to-options";
-	settingsLink.style.cssText = `
-		display: block;
-		margin-top: 5px;
-		font-size: 12px;
-		color: #0066cc;
-		text-decoration: none;
+	settingsLink.className = `
+		block
+		mt-2
+		text-xs
+		text-blue-600 dark:text-blue-400
+		no-underline
+		cursor-pointer
+		transition-all duration-200 ease-in-out
+		hover:underline
 	`;
 
 	overlay.appendChild(autocompleteInput);
-	overlay.appendChild(modelSelect);
-	overlay.appendChild(submitButton);
+	overlay.appendChild(controlsDiv);
 	overlay.appendChild(settingsLink);
 	overlay.input = autocompleteInput;
 	overlay.modelSelect = modelSelect;
 	overlay.submitButton = submitButton;
 	overlay.settingsLink = settingsLink;
 	overlay.originalInput = input;
-
 	return overlay;
 }
 
 function positionOverlay(overlay: AutocompleteOverlay): void {
 	const rect = overlay.originalInput.getBoundingClientRect();
+
 	overlay.style.left = `${rect.left + window.scrollX}px`;
 	overlay.style.top = `${
-		rect.top + window.scrollY - overlay.offsetHeight - 5
+		rect.bottom + window.scrollY + 5 - overlay.offsetHeight
 	}px`;
 }
 
@@ -97,9 +127,11 @@ function hideOverlay(): void {
 
 function setupOverlayListeners(overlay: AutocompleteOverlay): void {
 	async function handleSubmit() {
-		const prompt = overlay.input.value;
+		const prompt = `${
+			overlay.input.value
+		}. CURRENT_INPUT_VALUE: ${overlay.getAttribute("data-current-input")}`;
 		const model = overlay.modelSelect.value;
-		console.log("I have been clicked");
+
 		const completion = await requestCompletion(prompt, model);
 		overlay.originalInput.value = completion;
 		hideOverlay();
@@ -126,7 +158,6 @@ async function requestCompletion(
 	prompt: string,
 	model: string,
 ): Promise<string> {
-	console.log("Start completiong", prompt, model);
 	return new Promise((resolve) => {
 		chrome.runtime.sendMessage(
 			{ action: "getCompletion", prompt, model },

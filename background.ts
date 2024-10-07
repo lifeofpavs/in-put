@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
+import type { TextBlock } from "@anthropic-ai/sdk/resources";
 
 interface Settings {
 	openaiKey: string;
@@ -10,14 +11,19 @@ interface Settings {
 let anthropic: Anthropic;
 
 function initializeClients(settings: Settings) {
-	if (settings.anthropicKey) {
-		anthropic = new Anthropic({
-			apiKey: settings.anthropicKey,
-		});
-	}
+	console.log("Initializing clients with settings:", settings.anthropicKey);
+
+	anthropic = new Anthropic({
+		apiKey:
+			"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", //settings.anthropicKey,
+		defaultHeaders: {
+			"anthropic-dangerous-direct-browser-access": "true",
+		},
+	});
 }
 
 chrome.storage.sync.get(["settings"], (result) => {
+	console.log(result);
 	const settings: Settings = result.settings || {};
 	initializeClients(settings);
 });
@@ -29,7 +35,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 		return true; // Indicates that the response is asynchronous
 	}
 	if (request.action === "openSettingsPage") {
-		chrome.tabs.create({ url: chrome.runtime.getURL("settings.html") });
+		chrome.tabs.create({ url: chrome.runtime.getURL("options.html") });
 	}
 });
 
@@ -41,19 +47,20 @@ async function getCompletion(
 		let completion: string;
 
 		if (model === "claude-3.5") {
-			const response = await anthropic.completions.create({
-				model: "claude-3",
-				prompt: prompt,
-				max_tokens_to_sample: 50,
+			const response = await anthropic.messages.create({
+				model: "claude-3-5-sonnet-20240620",
+				messages: [{ role: "user", content: prompt }],
+				system:
+					"You are a helpful assistant which objective is to generate input data based on used prompt. The generated data would be used as the input of an input html text element and must be concise yet have meaning. If there is any current input value under CURRENT_INPUT_VALUE, use it for context of the prompt ",
+				max_tokens: 1024,
 			});
-			completion = response.completion.trim();
+
+			completion = (response.content[0] as TextBlock).text;
 		} else {
-			console.log("unsupported");
-			return { completion: "", error: "unsupported", prompt };
 			throw new Error("Unsupported model");
 		}
 
-		return { completion: "kk", error: "", prompt };
+		return { completion: completion, error: "", prompt };
 	} catch (error) {
 		console.error("Error getting completion:", error, prompt);
 		return {
