@@ -24,11 +24,10 @@ function createAutocompleteOverlay(
 	const styleElement = document.createElement("style");
 	styleElement.textContent = `
 		:root {
-			--background-color-light: #ffffff;
+			--background-color-light: #757575;
 			--text-color-light: #000000;
-			--background-color-dark: #121212;
-			--text-color-dark: #ffffff;
-      --border-color: #
+			--background-color-dark: #2A2A2B;
+			--text-color-dark: #000000;
 		}
 
 		#in-put-overlay {
