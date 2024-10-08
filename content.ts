@@ -12,6 +12,12 @@ interface AutocompleteOverlay extends HTMLDivElement {
 
 let currentOverlay: AutocompleteOverlay | null = null;
 
+const defaultModels = [
+	{ value: "o1-mini-2024-09-12", label: "o1 Mini (OpenAI)" },
+	{ value: "chatgpt-4o-latest", label: "GPT-4o (OpenAI)" },
+	{ value: "claude-3-5-sonnet-20240620", label: "Claude 3.5 (Anthropic)" },
+];
+
 function createAutocompleteOverlay(
 	input: HTMLInputElement | HTMLTextAreaElement,
 ): AutocompleteOverlay {
@@ -96,19 +102,11 @@ function createAutocompleteOverlay(
 	chrome.storage.local.get(["settings"], (result) => {
 		const { defaultModel } = result.settings;
 
-		const models = [
-			{ value: "o1-mini-2024-09-12", label: "o1 Mini (OpenAI)" },
-			{ value: "chatgpt-4o-latest", label: "GPT-4o (OpenAI)" },
-			{ value: "claude-3-5-sonnet-20240620", label: "Claude 3.5 (Anthropic)" },
-		];
-
 		const effectiveDefault = defaultModel || "claude-3-5-sonnet-20240620";
 
-		const sortedModels = models.sort((a, b) =>
+		const sortedModels = defaultModels.sort((a, b) =>
 			a.value === effectiveDefault ? -1 : b.value === effectiveDefault ? 1 : 0,
 		);
-		console.log(sortedModels);
-		console.log(effectiveDefault);
 
 		modelSelect.innerHTML = sortedModels
 			.map(
@@ -119,6 +117,16 @@ function createAutocompleteOverlay(
 			)
 			.join("");
 	});
+
+	// Add default select values if modelSelect innerHTML is empty
+	if (!modelSelect.innerHTML) {
+		modelSelect.innerHTML = defaultModels
+			.map((model) => `<option value="${model.value}">${model.label}</option>`)
+			.join("");
+
+		// Set Claude 3.5 as the default selected option
+		modelSelect.value = "claude-3-5-sonnet-20240620";
+	}
 	modelSelect.style.padding = "5px";
 
 	const submitButton = document.createElement("button");
