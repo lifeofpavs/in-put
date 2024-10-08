@@ -1,6 +1,13 @@
 # In-put: AI Autocomplete Chrome Extension
 
-![In-put Icon](assets/icon-128.png)
+<p align="center">
+  <img src="assets/icon-128.png" alt="In-put Icon" width="128" height="128">
+</p>
+
+<p align="center">
+  <img src="assets/in-put-demo.gif" alt="In-put Demo" width="640">
+</p>
+
 
 ## Description
 
