@@ -2,7 +2,7 @@
 	"manifest_version": 3,
 	"name": "In-put: AI Autocomplete",
 	"version": "0.0.1",
-	"description": "Enhance your productivity with AI-powered autocomplete. Summon intelligent suggestions for any input field with a simple keyboard shortcut(CMD+k/Cntrl+k), leveraging advanced language models to complete your thoughts.",
+	"description": "AI-powered autocomplete for any input field. Use CMD+K/Ctrl+K to summon intelligent suggestions and boost productivity.",
 	"permissions": ["activeTab", "scripting", "storage", "nativeMessaging"],
 	"host_permissions": ["<all_urls>"],
 	"action": {

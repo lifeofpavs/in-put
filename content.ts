@@ -80,23 +80,51 @@ function createAutocompleteOverlay(
 	`;
 
 	const controlsDiv = document.createElement("div");
-	controlsDiv.className = "flex justify-end items-center mt-2";
+	controlsDiv.style.cssText = `
+		display: flex;
+		align-items: center;
+		margin-top: 8px;
+		margin-bottom: 8px;
+		width: 100%;
+	`;
+	controlsDiv.style.gap = "8px"; // Equivalent to space-x-2
 
 	const modelSelect = document.createElement("select");
 	modelSelect.style.cssText = `
-  		border-radius: 2px;`;
+  		border-radius: 4px;`;
 
-	modelSelect.innerHTML = `
-    <option value="o1-mini-2024-09-12">o1 Mini (OpenAI)</option>
-    <option value="chatgpt-4o-latest">GPT-4o (OpenAI)</option>
-    <option value="claude-3-5-sonnet-20240620">Claude 3.5 (Anthropic)</option>
-	`;
+	chrome.storage.local.get(["settings"], (result) => {
+		const { defaultModel } = result.settings;
+
+		const models = [
+			{ value: "o1-mini-2024-09-12", label: "o1 Mini (OpenAI)" },
+			{ value: "chatgpt-4o-latest", label: "GPT-4o (OpenAI)" },
+			{ value: "claude-3-5-sonnet-20240620", label: "Claude 3.5 (Anthropic)" },
+		];
+
+		const effectiveDefault = defaultModel || "claude-3-5-sonnet-20240620";
+
+		const sortedModels = models.sort((a, b) =>
+			a.value === effectiveDefault ? -1 : b.value === effectiveDefault ? 1 : 0,
+		);
+		console.log(sortedModels);
+		console.log(effectiveDefault);
+
+		modelSelect.innerHTML = sortedModels
+			.map(
+				(model) =>
+					`<option value="${model.value}"${
+						model.value === effectiveDefault ? " selected" : ""
+					}>${model.label}</option>`,
+			)
+			.join("");
+	});
 	modelSelect.style.padding = "5px";
 
 	const submitButton = document.createElement("button");
 	submitButton.textContent = "Submit";
 	submitButton.className = `
-		px-3 py-2
+		px-3 py-1
 		bg-gray-100 dark:bg-gray-700
 		border border-gray-300 dark:border-gray-600
 		rounded
@@ -106,6 +134,7 @@ function createAutocompleteOverlay(
 		ml-2
 		transition-colors duration-200 ease-in-out
 		hover:bg-gray-200 dark:hover:bg-gray-600
+    rounded-md
 	`;
 
 	const spinner = document.createElement("div");
