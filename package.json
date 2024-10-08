@@ -5,7 +5,7 @@
 	"scripts": {
 		"build": "webpack",
 		"watch": "webpack --watch",
-		"release": "pnpm run build && pnpm exec webpack && zip -r barvis-ai-autocomplete-extension.zip dist manifest.json icons options.html -x '*.ts'"
+		"release": "pnpm run build && pnpm exec webpack && zip -r in-put-ai-autocomplete-extension.zip dist manifest.json icons options.html -x '*.ts'"
 	},
 	"dependencies": {
 		"@anthropic-ai/sdk": "^0.28.0",

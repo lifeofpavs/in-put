@@ -1,6 +1,6 @@
 {
 	"manifest_version": 3,
-	"name": "Barvis: AI Autocomplete",
+	"name": "In-put: AI Autocomplete",
 	"version": "0.0.1",
 	"description": "Enhance your productivity with AI-powered autocomplete. Summon intelligent suggestions for any input field with a simple keyboard shortcut(CMD+k/Cntrl+k), leveraging advanced language models to complete your thoughts.",
 	"permissions": ["activeTab", "scripting", "storage", "nativeMessaging"],

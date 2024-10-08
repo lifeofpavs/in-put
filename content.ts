@@ -25,13 +25,13 @@ function createAutocompleteOverlay(
       --border-color: #
 		}
 
-		#barvis-overlay {
+		#in-put-overlay {
 			background-color: var(--background-color-light);
 			color: var(--text-color-light);
 		}
 
     @media (prefers-color-scheme: dark) {
-			#barvis-overlay {
+			#in-put-overlay {
 			background-color: var(--background-color-dark);
 			color: var(--text-color-dark);
 		}
@@ -55,7 +55,7 @@ function createAutocompleteOverlay(
 	document.documentElement.style.setProperty("--current-text-color", textColor);
 	document.head.appendChild(styleElement);
 	const overlay = document.createElement("div") as AutocompleteOverlay;
-	overlay.id = "barvis-overlay";
+	overlay.id = "in-put-overlay";
 
 	overlay.style.cssText = `
 		position: absolute;
