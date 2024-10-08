@@ -22,6 +22,7 @@ In-put is a powerful Chrome extension that brings AI-powered autocomplete functi
   - GPT-3.5 Turbo (OpenAI)
 - Customizable settings for API keys and default model
 - Easy-to-use interface with a simple keyboard shortcut
+- Utilizes existing input data as context for more relevant suggestions
 
 ## How to Use
 
@@ -65,6 +66,55 @@ To set up the development environment:
 3. Use `pnpm run build` to build the extension
 4. Load the unpacked extension in Chrome as described in the Installation section
 5. For development with auto-reloading, use `pnpm run watch`
+
+## Use Cases
+
+The In-put AI Autocomplete extension can be incredibly useful in various scenarios. Here are some potential use cases:
+
+1. **Generating Mock Data**: 
+   - Quickly create realistic test data for development and testing purposes
+   - Generate sample user profiles, product descriptions, or transaction records
+
+2. **Writing Pull Requests**:
+   - Draft clear and concise PR descriptions
+   - Generate commit messages that follow best practices
+   - Summarize code changes for easier review
+
+3. **Composing Emails**:
+   - Craft professional email responses
+   - Generate email templates for common scenarios
+
+4. **Content Creation**:
+   - Brainstorm ideas for blog posts or articles
+   - Generate outlines for presentations or reports
+
+5. **Code Documentation**:
+   - Write clear and informative comments for your code
+   - Generate docstrings for functions and classes
+
+6. **Answering Questions**:
+   - Provide quick responses to common queries in customer support scenarios
+   - Generate explanations for complex topics
+
+7. **Form Filling**:
+   - Autocomplete repetitive information in online forms
+   - Generate appropriate responses for survey questions
+
+8. **Language Translation**:
+   - Get quick translations for words or phrases
+   - Rephrase sentences in a different language
+
+9. **Proofreading and Editing**:
+   - Suggest improvements for grammar and style
+   - Rewrite sentences for clarity and conciseness
+
+10. **Ideation and Problem-Solving**:
+    - Generate potential solutions to problems
+    - Brainstorm creative ideas for projects or campaigns
+
+Remember that while the AI can provide helpful suggestions, always review and verify the generated content to ensure accuracy and appropriateness for your specific context.
+
+
 
 ## Privacy and Security
 
