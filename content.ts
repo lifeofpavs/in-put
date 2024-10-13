@@ -1,6 +1,6 @@
-import { OpenAI } from "openai";
 interface AutocompleteOverlay extends HTMLDivElement {
 	input: HTMLInputElement;
+	secondaryInput: HTMLInputElement;
 	modelSelect: HTMLSelectElement;
 	submitButton: HTMLButtonElement;
 	settingsLink: HTMLAnchorElement;
@@ -8,9 +8,12 @@ interface AutocompleteOverlay extends HTMLDivElement {
 	warningMessage: HTMLDivElement;
 	errorMessage: HTMLDivElement;
 	originalInput: HTMLInputElement | HTMLTextAreaElement;
+	previewArea: HTMLDivElement;
+	applyButton: HTMLButtonElement;
 }
 
 let currentOverlay: AutocompleteOverlay | null = null;
+let fullPromptContext = "";
 
 const defaultModels = [
 	{ value: "o1-mini-2024-09-12", label: "o1 Mini (OpenAI)" },
@@ -84,6 +87,17 @@ function createAutocompleteOverlay(
 		box-sizing: border-box;
 	`;
 
+	const secondaryInput = document.createElement("input");
+	secondaryInput.type = "text";
+	secondaryInput.placeholder = "Refine your prompt (optional)...";
+	secondaryInput.style.cssText = `
+		width: 100%;
+		padding: 5px;
+		margin-top: 5px;
+		box-sizing: border-box;
+		display: none;
+	`;
+
 	const controlsDiv = document.createElement("div");
 	controlsDiv.style.cssText = `
 		display: flex;
@@ -99,19 +113,18 @@ function createAutocompleteOverlay(
   		border-radius: 4px;`;
 
 	chrome.storage.local.get(["settings"], (result) => {
-		const { defaultModel } = result.settings;
-
-		const effectiveDefault = defaultModel || "claude-3-5-sonnet-20240620";
+		const defaultModel =
+			result.settings?.defaultModel ?? "claude-3-5-sonnet-20240620";
 
 		const sortedModels = defaultModels.sort((a, b) =>
-			a.value === effectiveDefault ? -1 : b.value === effectiveDefault ? 1 : 0,
+			a.value === defaultModel ? -1 : b.value === defaultModel ? 1 : 0,
 		);
 
 		modelSelect.innerHTML = sortedModels
 			.map(
 				(model) =>
 					`<option value="${model.value}"${
-						model.value === effectiveDefault ? " selected" : ""
+						model.value === defaultModel ? " selected" : ""
 					}>${model.label}</option>`,
 			)
 			.join("");
@@ -196,19 +209,60 @@ function createAutocompleteOverlay(
 		block
 		mt-2
 		text-xs
-		text-blue-600 dark:text-blue-400
+		text-blue-600
+		dark:text-blue-400
 		no-underline
 		cursor-pointer
 		transition-all duration-200 ease-in-out
 		hover:underline
 	`;
 
+	const previewArea = document.createElement("div");
+	previewArea.style.cssText = `
+		width: 100%;
+		padding: 5px;
+		margin-top: 10px;
+		border: 1px solid #ccc;
+		border-radius: 4px;
+		max-height: 100px;
+		overflow-y: auto;
+		display: none;
+	`;
+
+	const previewText = document.createElement("p");
+	previewText.className = "dark:text-white";
+	previewArea.appendChild(previewText);
+
+	const applyButton = document.createElement("button");
+	applyButton.textContent = "Apply Changes";
+	applyButton.className = `
+		px-3 py-1
+		bg-green-500
+		text-white
+		rounded
+		text-sm
+		cursor-pointer
+		transition-colors duration-200 ease-in-out
+		hover:bg-green-600
+		disabled:opacity-50
+		disabled:cursor-not-allowed
+	`;
+	applyButton.style.cssText = `
+		display: none;
+		float: right;
+		margin-top: 10px;
+	`;
+
 	overlay.appendChild(autocompleteInput);
+	overlay.appendChild(secondaryInput);
 	overlay.appendChild(controlsDiv);
 	overlay.appendChild(warningMessage);
 	overlay.appendChild(errorMessage);
 	overlay.appendChild(settingsLink);
+	overlay.appendChild(previewArea);
+	overlay.appendChild(applyButton);
 	overlay.input = autocompleteInput;
+	overlay.secondaryInput = secondaryInput;
 	overlay.modelSelect = modelSelect;
 	overlay.submitButton = submitButton;
 	overlay.settingsLink = settingsLink;
@@ -216,6 +270,8 @@ function createAutocompleteOverlay(
 	overlay.warningMessage = warningMessage;
 	overlay.errorMessage = errorMessage;
 	overlay.originalInput = input;
+	overlay.previewArea = previewArea;
+	overlay.applyButton = applyButton;
 	return overlay;
 }
 
@@ -243,6 +299,17 @@ function hideOverlay(): void {
 	if (currentOverlay) {
 		currentOverlay.style.display = "none";
 		currentOverlay.originalInput.focus();
+		// Reset the overlay state
+		currentOverlay.input.value = "";
+		currentOverlay.input.placeholder = "Enter prompt for autocomplete...";
+		const previewText = currentOverlay.previewArea.querySelector("p");
+		if (previewText) {
+			previewText.textContent = "";
+		}
+		currentOverlay.previewArea.style.display = "none";
+		currentOverlay.applyButton.style.display = "none";
+		// Reset the full prompt context
+		fullPromptContext = "";
 	}
 }
 
@@ -258,10 +325,20 @@ function checkApiKeyAvailability(overlay: AutocompleteOverlay): void {
 }
 
 function setupOverlayListeners(overlay: AutocompleteOverlay): void {
+	let currentCompletion = "";
+
 	async function handleSubmit() {
-		const prompt = `${
-			overlay.input.value
-		}. CURRENT_INPUT_VALUE: ${overlay.getAttribute("data-current-input")}`;
+		const primaryPrompt = overlay.input.value;
+
+		if (fullPromptContext) {
+			fullPromptContext += `, ${primaryPrompt}`;
+		} else {
+			fullPromptContext = primaryPrompt;
+		}
+
+		const prompt = `${fullPromptContext}. CURRENT_INPUT_VALUE: ${overlay.getAttribute(
+			"data-current-input",
+		)}`;
 		const model = overlay.modelSelect.value;
 
 		// Show spinner and disable submit button
@@ -275,8 +352,19 @@ function setupOverlayListeners(overlay: AutocompleteOverlay): void {
 			if (completion === "Error: Unable to get completion") {
 				throw new Error("Unable to get completion");
 			}
-			overlay.originalInput.value = completion;
-			hideOverlay();
+			currentCompletion = completion;
+
+			// Show preview instead of directly applying
+			const previewText = overlay.previewArea.querySelector("p");
+			if (previewText) {
+				previewText.textContent = completion;
+			}
+			overlay.previewArea.style.display = "block";
+			overlay.applyButton.style.display = "block";
+
+			// Clear input and update placeholder for refinement
+			overlay.input.value = "";
+			overlay.input.placeholder = "Refine your prompt (optional)...";
 		} catch (error) {
 			overlay.errorMessage.textContent =
 				"Failed to get completion. Please try again or change the model.";
@@ -289,8 +377,15 @@ function setupOverlayListeners(overlay: AutocompleteOverlay): void {
 		}
 	}
 
+	function applyChanges() {
+		overlay.originalInput.value = currentCompletion;
+		hideOverlay();
+	}
+
 	overlay.submitButton.addEventListener("click", handleSubmit);
-	overlay.input.addEventListener("keydown", (e: KeyboardEvent) => {
+	overlay.applyButton.addEventListener("click", applyChanges);
+
+	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === "Enter") {
 			e.preventDefault();
 			handleSubmit();
@@ -298,7 +393,10 @@ function setupOverlayListeners(overlay: AutocompleteOverlay): void {
 			e.preventDefault();
 			hideOverlay();
 		}
-	});
+	}
+
+	overlay.input.addEventListener("keydown", handleKeydown);
+	overlay.secondaryInput.addEventListener("keydown", handleKeydown);
 
 	overlay.settingsLink.addEventListener("click", (e) => {
 		e.preventDefault();
