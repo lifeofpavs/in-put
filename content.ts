@@ -316,7 +316,6 @@ function showOverlay(input: HTMLInputElement | HTMLTextAreaElement): void {
 function hideOverlay(): void {
 	if (currentOverlay) {
 		currentOverlay.style.display = "none";
-		currentOverlay.originalInput.focus();
 		// Reset the overlay state
 		currentOverlay.input.value = "";
 		currentOverlay.input.placeholder = "Enter prompt for autocomplete...";

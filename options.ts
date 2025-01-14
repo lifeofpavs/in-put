@@ -26,7 +26,7 @@ function loadSettings() {
 		openaiKeyInput.value = settings.openaiKey || "";
 		anthropicKeyInput.value = settings.anthropicKey || "";
 		defaultModelSelect.value =
-			settings.defaultModel || "claude-3-5-sonnet-20240620";
+			settings.defaultModel || "claude-3-5-sonnet-latest";
 	});
 }
 
