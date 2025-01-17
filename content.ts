@@ -455,7 +455,7 @@ document.addEventListener("focusout", (e: FocusEvent) => {
 });
 
 function handleInputKeydown(e: KeyboardEvent): void {
-	if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+	if (e.key === "j" && (e.metaKey || e.ctrlKey)) {
 		e.preventDefault();
 		showOverlay(e.target as HTMLInputElement | HTMLTextAreaElement);
 	}
